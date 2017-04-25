@@ -76,8 +76,26 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+        best_score = float("inf")
+        best_model = None
+        for n in range(self.min_n_components, self.max_n_components):
+            model = self.base_model(n)
+            try:
+                logL = model.score(self.X, self.lengths)
+                # the number of parameters is the sum of:
+                # 1. the transitions probabilities between the different states: you can only go to the next state, so: n-1
+                # 2. the mean and variance for each feature in every state: 2 * n * len(model.means_[0])
+                p = n - 1 + 2 * n * len(model.means_[0])
+                N = len(self.X)
+                logN = np.log(N)
+                score = -2 * logL + p * logN
+                if score < best_score:
+                    best_score = score
+                    best_model = model
+            except ValueError:
+                pass
+
+        return best_model
 
 
 class SelectorDIC(ModelSelector):
