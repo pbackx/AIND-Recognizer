@@ -32,12 +32,15 @@ class ModelSelector(object):
         raise NotImplementedError
 
     def base_model(self, num_states):
+        return self.model(num_states, self.X, self.lengths)
+
+    def model(self, num_states, X, lengths):
         # with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        # warnings.filterwarnings("ignore", category=RuntimeWarning)
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         try:
             hmm_model = GaussianHMM(n_components=num_states, covariance_type="diag", n_iter=1000,
-                                    random_state=self.random_state, verbose=False).fit(self.X, self.lengths)
+                                    random_state=self.random_state, verbose=False).fit(X, lengths)
             if self.verbose:
                 print("model created for {} with {} states".format(self.this_word, num_states))
             return hmm_model
@@ -78,7 +81,7 @@ class SelectorBIC(ModelSelector):
 
         best_score = float("inf")
         best_model = None
-        for n in range(self.min_n_components, self.max_n_components):
+        for n in range(self.min_n_components, self.max_n_components+1):
             model = self.base_model(n)
             try:
                 logL = model.score(self.X, self.lengths)
@@ -110,6 +113,7 @@ class SelectorDIC(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+        #https://ai-nd.slack.com/files/petetanru/F4Y0WQW0K/my_DIC_result.txt
         # TODO implement model selection based on DIC scores
         raise NotImplementedError
 
@@ -124,28 +128,33 @@ class SelectorCV(ModelSelector):
 
         # First construct the training and test folds.
         # I'm sure there is a much more elegant way to write this using list comprehensions
-        X_training_list = []
-        lengths_trainig_list = []
-        X_test_list = []
-        lengths_test_list = []
-        for cv_train_idx, cv_test_idx in KFold().split(self.sequences):
-            X_training, lengths_training = combine_sequences(cv_train_idx, self.sequences)
-            X_training_list.append(X_training)
-            lengths_trainig_list.append(lengths_training)
-            X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
-            X_test_list.append(X_test)
-            lengths_test_list.append(lengths_test)
+        splits = []
+        if len(self.sequences) == 2: # TODO are there words with only one sequence?
+            X1, lengths1 = combine_sequences([0], self.sequences)
+            X2, lengths2 = combine_sequences([1], self.sequences)
+            splits = [
+                (X1, lengths1, X2, lengths2),
+                (X2, lengths2, X1, lengths1),
+            ]
+        else:
+            for cv_train_idx, cv_test_idx in KFold().split(self.sequences):
+                X_training, lengths_training = combine_sequences(cv_train_idx, self.sequences)
+                X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
+                splits.append((X_training, lengths_training, X_test, lengths_test))
 
-        print(len(X_training_list))
-        print(len(lengths_trainig_list))
-        print(len(X_test_list))
-        print(len(lengths_test_list))
+        best_score = float("-inf")
+        best_num_states = None
+        for n in range(self.min_n_components, self.max_n_components+1):
+            score = 0
+            for X_training, lengths_training, X_test, lengths_test in splits:
+                model = self.model(n, X_training, lengths_training)
+                try:
+                    logL = model.score(X_test, lengths_test)
+                    score += logL
+                except:
+                    pass
+            if score > best_score:
+                best_score = score
+                best_num_states = n
 
-        best_score = float("inf")
-        best_model = None
-        for n in range(self.min_n_components, self.max_n_components):
-            pass
-
-
-        # TODO implement model selection using CV
-        raise NotImplementedError
+        return self.base_model(best_num_states)
