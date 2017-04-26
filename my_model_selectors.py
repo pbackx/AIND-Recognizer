@@ -92,7 +92,7 @@ class SelectorBIC(ModelSelector):
                 if score < best_score:
                     best_score = score
                     best_model = model
-            except ValueError:
+            except:
                 pass
 
         return best_model
@@ -121,6 +121,31 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+        # First construct the training and test folds.
+        # I'm sure there is a much more elegant way to write this using list comprehensions
+        X_training_list = []
+        lengths_trainig_list = []
+        X_test_list = []
+        lengths_test_list = []
+        for cv_train_idx, cv_test_idx in KFold().split(self.sequences):
+            X_training, lengths_training = combine_sequences(cv_train_idx, self.sequences)
+            X_training_list.append(X_training)
+            lengths_trainig_list.append(lengths_training)
+            X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
+            X_test_list.append(X_test)
+            lengths_test_list.append(lengths_test)
+
+        print(len(X_training_list))
+        print(len(lengths_trainig_list))
+        print(len(X_test_list))
+        print(len(lengths_test_list))
+
+        best_score = float("inf")
+        best_model = None
+        for n in range(self.min_n_components, self.max_n_components):
+            pass
+
 
         # TODO implement model selection using CV
         raise NotImplementedError
