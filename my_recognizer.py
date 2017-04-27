@@ -20,6 +20,12 @@ def recognize(models: dict, test_set: SinglesData):
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     probabilities = []
     guesses = []
+
+    for key, Xlengths in test_set.get_all_Xlengths().items():
+        X, lengths = Xlengths
+        print(key, X, lengths)
+
+
     # TODO implement the recognizer
     # return probabilities, guesses
     raise NotImplementedError
