@@ -86,7 +86,7 @@ class SelectorBIC(ModelSelector):
             try:
                 logL = model.score(self.X, self.lengths)
                 # the number of parameters is the sum of:
-                # 1. the transitions probabilities between the different states: you can only go to the next state, so: n-1
+                # 1. the transition probabilities between the different states: you can only go to the next state, so: n-1
                 # 2. the mean and variance for each feature in every state: 2 * n * len(model.means_[0])
                 p = n - 1 + 2 * n * len(model.means_[0])
                 N = len(self.X)
@@ -112,10 +112,28 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        M = len(self.words)
+        best_score = float("-inf")
+        best_model = None
+        for n in range(self.min_n_components, self.max_n_components+1):
+            model = self.base_model(n)
+            try:
+                logPXi = model.score(self.X, self.lengths)
+                sum = 0
+                for word in self.hwords:
+                    if not word == self.this_word:
+                        X, lengths = self.hwords[word]
+                        sum += model.score(X, lengths)
+                score = logPXi - (sum / (M - 1))
+                if score > best_score:
+                    best_score = score
+                    best_model = model
+            except:
+                pass
 
         #https://ai-nd.slack.com/files/petetanru/F4Y0WQW0K/my_DIC_result.txt
         # TODO implement model selection based on DIC scores
-        raise NotImplementedError
+        return best_model
 
 
 class SelectorCV(ModelSelector):
