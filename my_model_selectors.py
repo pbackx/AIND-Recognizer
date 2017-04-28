@@ -144,10 +144,25 @@ class SelectorCV(ModelSelector):
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+        best_score = float("-inf")
+        best_num_states = None
+
         # First construct the training and test folds.
         # I'm sure there is a much more elegant way to write this using list comprehensions
         splits = []
-        if len(self.sequences) == 2: # TODO are there words with only one sequence?
+        if len(self.sequences) == 1:
+            # we can't make any fold, so we just search the best score
+            for n in range(self.min_n_components, self.max_n_components+1):
+                model = self.base_model(n)
+                try:
+                    logL = model.score(self.X, self.lengths)
+                    if logL > best_score:
+                        best_score = logL
+                        best_num_states = n
+                except:
+                    pass
+            return self.base_model(best_num_states)
+        elif len(self.sequences) == 2:
             X1, lengths1 = combine_sequences([0], self.sequences)
             X2, lengths2 = combine_sequences([1], self.sequences)
             splits = [
@@ -160,8 +175,6 @@ class SelectorCV(ModelSelector):
                 X_test, lengths_test = combine_sequences(cv_test_idx, self.sequences)
                 splits.append((X_training, lengths_training, X_test, lengths_test))
 
-        best_score = float("-inf")
-        best_num_states = None
         for n in range(self.min_n_components, self.max_n_components+1):
             score = 0
             for X_training, lengths_training, X_test, lengths_test in splits:
