@@ -21,11 +21,13 @@ def recognize(models: dict, test_set: SinglesData):
     probabilities = []
     guesses = []
 
+    # check every word in the test set one by one
     for word_id, Xlengths in test_set.get_all_Xlengths().items():
         X, lengths = Xlengths
         best_score = float("-inf")
         best_word = None
         scores = {}
+        # go over all models and find the one with the highest probability
         for word, model in models.items():
             try:
                 logL = model.score(X, lengths)

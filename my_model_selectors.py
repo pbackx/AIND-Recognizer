@@ -86,9 +86,10 @@ class SelectorBIC(ModelSelector):
             try:
                 logL = model.score(self.X, self.lengths)
                 # the number of parameters is the sum of:
-                # 1. the transition probabilities between the different states: you can only go to the next state, so: n-1
+                # 1. the transition probabilities between the different states: from each of the n states, you can go
+                #    to n-1 states
                 # 2. the mean and variance for each feature in every state: 2 * n * len(model.means_[0])
-                p = n - 1 + 2 * n * len(model.means_[0])
+                p = n * (n - 1) + 2 * n * len(model.means_[0])
                 N = len(self.X)
                 logN = np.log(N)
                 score = -2 * logL + p * logN
@@ -118,7 +119,10 @@ class SelectorDIC(ModelSelector):
         for n in range(self.min_n_components, self.max_n_components+1):
             model = self.base_model(n)
             try:
+                # calculate the score of this word
                 logPXi = model.score(self.X, self.lengths)
+
+                # now calculate the sum of the scores of all other words
                 sum = 0
                 for word in self.hwords:
                     if not word == self.this_word:
@@ -163,6 +167,8 @@ class SelectorCV(ModelSelector):
                     pass
             return self.base_model(best_num_states)
         elif len(self.sequences) == 2:
+            # the KFold algorithm below tries to create 3 folds. This is not possible if there are only two examples
+            # so we create the folds manually
             X1, lengths1 = combine_sequences([0], self.sequences)
             X2, lengths2 = combine_sequences([1], self.sequences)
             splits = [
@@ -177,6 +183,7 @@ class SelectorCV(ModelSelector):
 
         for n in range(self.min_n_components, self.max_n_components+1):
             score = 0
+            # now use all training sets to create a model and the test set to score the model
             for X_training, lengths_training, X_test, lengths_test in splits:
                 model = self.model(n, X_training, lengths_training)
                 try:
